@@ -1,11 +1,26 @@
-import { Cloud, CloudSun, Droplet, Leaf, MapPin } from "lucide-react-native";
+import {
+  Cloud,
+  CloudRain,
+  CloudSun,
+  Droplet,
+  Leaf,
+  MapPin,
+  Thermometer,
+} from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Index() {
   const insets = useSafeAreaInsets();
   const [temperature, setTemperature] = useState<Number | null>(null);
+  const [appTemp, setAppTemp] = useState<Number | null>(null);
+  const [humidity, setHumidity] = useState<Number | null>(null);
+  const [windSpeed, setWindSpeed] = useState<Number | null>(null);
+  const [windDirection, setWindDirection] = useState<number | null>(null);
+  const [rainChance, setRainChance] = useState<number | null>(null);
+  const [precipitation, setPrecipitation] = useState<number | null>(null);
+  const [uvIndex, setUvIndex] = useState<number | null>(null);
   const [aqi, setAqi] = useState<number | null>(null);
   const currentDate = new Date().toLocaleDateString("en-US", {
     month: "short",
@@ -28,14 +43,38 @@ export default function Index() {
     if (aqi <= 100) return "Very poor";
     return "Extremely poor";
   };
+
+  function getWindDirection(degrees: number): string {
+    const directions = [
+      "North",
+      "North East",
+      "East",
+      "South East",
+      "South",
+      "South West",
+      "West",
+      "North West",
+    ];
+
+    return directions[Math.round(degrees / 45) % 8];
+  }
+
+  function getUVLabel(uv: number): string {
+    if (uv < 3) return "Low";
+    if (uv < 6) return "Moderate";
+    if (uv < 8) return "High";
+    if (uv < 11) return "Very High";
+    return "Extreme";
+  }
+
   useEffect(() => {
     const getWeather = async () => {
       const WEATHER_URL =
         "https://api.open-meteo.com/v1/forecast" +
         "?latitude=14.8133&longitude=121.0453" +
-        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m" +
+        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,precipitation_probability" +
         "&hourly=temperature_2m,weather_code" +
-        "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max" +
         "&forecast_days=7" +
         "&timezone=Asia%2FManila";
       const AIR_QUALITY_URL =
@@ -49,6 +88,13 @@ export default function Index() {
       const data = await response.json();
       const airData = await responseAir.json();
       setTemperature(data.current.temperature_2m);
+      setAppTemp(data.current.apparent_temperature);
+      setHumidity(data.current.relative_humidity_2m);
+      setWindSpeed(data.current.wind_speed_10m);
+      setWindDirection(data.current.wind_direction_10m);
+      setRainChance(data.current.precipitation_probability);
+      setPrecipitation(data.current.precipitation);
+      setUvIndex(data.daily.uv_index_max[0]);
       setAqi(airData.current.european_aqi);
       console.log("Current:", data.current);
       console.log("Hourly:", data.hourly);
@@ -67,8 +113,14 @@ export default function Index() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{
+        paddingBottom: insets.bottom + 16,
+      }}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <MapPin size={20} color="#1B252F" />
         <Text style={styles.textColor}>San Jose Del Monte, Bulacan</Text>
       </View>
@@ -101,7 +153,9 @@ export default function Index() {
               }}
             >
               <Droplet size={16} color={"blue"} />
-              <Text style={{ fontSize: 15, fontWeight: 500, marginTop: 2 }}>Rain 40%</Text>
+              <Text style={{ fontSize: 15, fontWeight: 500, marginTop: 2 }}>
+                Rain {rainChance}%
+              </Text>
             </View>
             <View
               style={{
@@ -123,7 +177,7 @@ export default function Index() {
           </View>
         </View>
       </View>
-
+      {/* Houry weather */}
       <View style={{ padding: 16 }}>
         <View style={{ backgroundColor: "white", padding: 16, borderRadius: 16 }}>
           <Text style={{ fontSize: 16 }}>HOURLY</Text>
@@ -173,7 +227,119 @@ export default function Index() {
           </View>
         </View>
       </View>
-    </View>
+      {/* Weather data */}
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          paddingHorizontal: 12,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "white",
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 16,
+            width: "49%",
+            gap: 6,
+            marginBottom: 6,
+          }}
+        >
+          <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Thermometer size={14} color={"#657383"} />
+            <Text style={{ color: "#657383", fontSize: 11.5 }}>Feels like</Text>
+          </View>
+          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+            {appTemp !== null ? `${appTemp}` : "--"}°
+          </Text>
+          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+        </View>
+
+        <View
+          style={{
+            backgroundColor: "white",
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 16,
+            width: "49%",
+            gap: 6,
+            marginBottom: 6,
+          }}
+        >
+          <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Droplet size={14} color={"#657383"} />
+            <Text style={{ color: "#657383", fontSize: 11.5 }}>Humidity</Text>
+          </View>
+          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+            {appTemp !== null ? `${humidity}` : "--"}%
+          </Text>
+          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+        </View>
+        <View
+          style={{
+            backgroundColor: "white",
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 16,
+            width: "49%",
+            gap: 6,
+            marginBottom: 6,
+          }}
+        >
+          <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Thermometer size={14} color={"#657383"} />
+            <Text style={{ color: "#657383", fontSize: 11.5 }}>Wind</Text>
+          </View>
+          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+            {appTemp !== null ? `${windSpeed}` : "--"}{" "}
+            {windDirection !== null ? getWindDirection(windDirection) : "--"}
+          </Text>
+          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+        </View>
+        <View
+          style={{
+            backgroundColor: "white",
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 16,
+            width: "49%",
+            gap: 6,
+            marginBottom: 6,
+          }}
+        >
+          <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <CloudRain size={14} color={"#657383"} />
+            <Text style={{ color: "#657383", fontSize: 11.5 }}>Precipitation</Text>
+          </View>
+          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+            {precipitation !== null ? `${precipitation}` : "--"}%
+          </Text>
+          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+        </View>
+        <View
+          style={{
+            backgroundColor: "white",
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 16,
+            width: "49%",
+            gap: 6,
+            marginBottom: 6,
+          }}
+        >
+          <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Thermometer size={14} color={"#657383"} />
+            <Text style={{ color: "#657383", fontSize: 11.5 }}>UV Index</Text>
+          </View>
+          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+            {uvIndex !== null ? `${uvIndex} ${getUVLabel(uvIndex)}` : "--"}
+          </Text>
+          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
