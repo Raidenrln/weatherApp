@@ -28,6 +28,24 @@ export default function Index() {
     day: "numeric",
   });
 
+  const currentTime = new Date();
+
+  const formatTime12hrs = (hours: number, minutes: number) => {
+    const hour = hours >= 12 ? "PM" : "AM";
+    const hour12 = String(hours % 12 || 12).padStart(2, "0");
+
+    return `${hour12}:${minutes} ${hour}`;
+  };
+
+  const formatHourly = (time: string) => {
+    const date = new Date(time);
+
+    return date.toLocaleDateString("en-US", {
+      hour: "numeric",
+      hour12: true,
+      timeZone: "Asia/Manila",
+    });
+  };
   const labelIconWeather = {
     1: {
       label: "Clear sky",
@@ -126,7 +144,9 @@ export default function Index() {
       </View>
 
       <View style={styles.weatherContainer}>
-        <Text style={styles.dateText}>{currentDate} • 09:11 AM</Text>
+        <Text style={styles.dateText}>
+          {currentDate} • {formatTime12hrs(currentTime.getHours(), currentTime.getHours())}
+        </Text>
 
         <View style={styles.weatherDisplay}>
           <CloudSun size={64} color="#E9A23B" strokeWidth={1.8} />
