@@ -6,10 +6,18 @@ import {
   Leaf,
   MapPin,
   Thermometer,
+  ThermometerSun,
+  Wind,
 } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+type HourlyWeather = {
+  time: string[];
+  temperature_2m: number[];
+  weather_code: number[];
+};
 
 export default function Index() {
   const insets = useSafeAreaInsets();
@@ -21,6 +29,7 @@ export default function Index() {
   const [rainChance, setRainChance] = useState<number | null>(null);
   const [precipitation, setPrecipitation] = useState<number | null>(null);
   const [uvIndex, setUvIndex] = useState<number | null>(null);
+  const [hourly, setHourly] = useState<HourlyWeather | null>(null);
   const [aqi, setAqi] = useState<number | null>(null);
   const currentDate = new Date().toLocaleDateString("en-US", {
     month: "short",
@@ -30,18 +39,27 @@ export default function Index() {
 
   const currentTime = new Date();
 
-  const formatTime12hrs = (hours: number, minutes: number) => {
-    const hour = hours >= 12 ? "PM" : "AM";
-    const hour12 = String(hours % 12 || 12).padStart(2, "0");
+  const isCurrentHour =
+    hourly?.time.findIndex((time) => {
+      const now = new Date();
+      const date = new Date(time);
 
-    return `${hour12}:${minutes} ${hour}`;
+      return date.getHours() === now.getHours() && date.getDate() === now.getDate();
+    }) ?? 0;
+  const formatTime12hrs = (hours: number, minutes: number) => {
+    const period = hours >= 12 ? "PM" : "AM";
+    const hour12 = String(hours % 12 || 12).padStart(2, "0");
+    const formatMin = String(minutes).padStart(2, "0");
+
+    return `${hour12}:${formatMin} ${period}`;
   };
 
   const formatHourly = (time: string) => {
     const date = new Date(time);
 
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleTimeString("en-US", {
       hour: "numeric",
+      minute: "2-digit",
       hour12: true,
       timeZone: "Asia/Manila",
     });
@@ -114,12 +132,13 @@ export default function Index() {
       setPrecipitation(data.current.precipitation);
       setUvIndex(data.daily.uv_index_max[0]);
       setAqi(airData.current.european_aqi);
+      setHourly(data.hourly);
       console.log("Current:", data.current);
       console.log("Hourly:", data.hourly);
       console.log("Daily:", data.daily);
       console.log("Air quality:", airData.current);
     };
-
+    // hourly?.time.map((t) => console.log(formatHourly(t)));
     getWeather();
     const intervalWeather = setInterval(
       () => {
@@ -201,49 +220,20 @@ export default function Index() {
       <View style={{ padding: 16 }}>
         <View style={{ backgroundColor: "white", padding: 16, borderRadius: 16 }}>
           <Text style={{ fontSize: 16 }}>HOURLY</Text>
-          <View style={{ display: "flex", flexDirection: "row", justifyContent: "space-evenly" }}>
-            <View
-              style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
-            >
-              <Text style={{ color: "blue" }}>Now</Text>
-              <CloudSun />
-              <Text style={{ fontSize: 16 }}>30°</Text>
-            </View>
-            <View
-              style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
-            >
-              <Text>11 AM</Text>
-              <CloudSun />
-              <Text style={{ fontSize: 16 }}>26°</Text>
-            </View>
-            <View
-              style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
-            >
-              <Text style={{ color: "blue" }}>Now</Text>
-              <CloudSun />
-              <Text style={{ fontSize: 16 }}>30°</Text>
-            </View>
-            <View
-              style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
-            >
-              <Text style={{ color: "blue" }}>Now</Text>
-              <CloudSun />
-              <Text style={{ fontSize: 16 }}>30°</Text>
-            </View>
-            <View
-              style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
-            >
-              <Text style={{ color: "blue" }}>Now</Text>
-              <CloudSun />
-              <Text style={{ fontSize: 16 }}>30°</Text>
-            </View>
-            <View
-              style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
-            >
-              <Text style={{ color: "blue" }}>Now</Text>
-              <CloudSun />
-              <Text style={{ fontSize: 16 }}>30°</Text>
-            </View>
+          <View style={{ display: "flex", flexDirection: "row", justifyContent: "space-around" }}>
+            {hourly?.time.slice(isCurrentHour, isCurrentHour + 5).map((time, index) => {
+              const actualTemp = isCurrentHour + index;
+              return (
+                <View
+                  key={time}
+                  style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
+                >
+                  <Text style={{ color: "blue" }}>{index === 0 ? "Now" : formatHourly(time)}</Text>
+                  <CloudSun />
+                  <Text style={{ fontSize: 16 }}>{hourly.temperature_2m[actualTemp]}°</Text>
+                </View>
+              );
+            })}
           </View>
         </View>
       </View>
@@ -309,11 +299,11 @@ export default function Index() {
           }}
         >
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Thermometer size={14} color={"#657383"} />
+            <Wind size={14} color={"#657383"} />
             <Text style={{ color: "#657383", fontSize: 11.5 }}>Wind</Text>
           </View>
           <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
-            {appTemp !== null ? `${windSpeed}` : "--"}{" "}
+            {appTemp !== null ? `${windSpeed} km/h` : "--"}{" "}
             {windDirection !== null ? getWindDirection(windDirection) : "--"}
           </Text>
           {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
@@ -350,7 +340,7 @@ export default function Index() {
           }}
         >
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Thermometer size={14} color={"#657383"} />
+            <ThermometerSun size={14} color={"#657383"} />
             <Text style={{ color: "#657383", fontSize: 11.5 }}>UV Index</Text>
           </View>
           <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
