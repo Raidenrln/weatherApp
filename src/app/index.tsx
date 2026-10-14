@@ -1,3 +1,4 @@
+import { Picker } from "@react-native-picker/picker";
 import {
   Cloud,
   CloudDrizzle,
@@ -20,7 +21,6 @@ import {
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 type HourlyWeather = {
   time: string[];
   temperature_2m: number[];
@@ -55,6 +55,24 @@ export default function Index() {
   const [hourly, setHourly] = useState<HourlyWeather | null>(null);
   const [dailyWeather, setDailyWeather] = useState<DailyWeather | null>(null);
   const [aqi, setAqi] = useState<number | null>(null);
+  const [region, setRegion] = useState("Manila");
+  const regionCoordinates = [
+    {
+      label: "Manila",
+      latitude: 14.6042,
+      longitude: 120.9822,
+    },
+    {
+      label: "Bulacan",
+      latitude: 14.8133,
+      longitude: 121.0453,
+    },
+    {
+      label: "Nueva Ecija",
+      latitude: 15.58333,
+      longitude: 121,
+    },
+  ];
   const currentDate = new Date().toLocaleDateString("en-US", {
     month: "short",
     weekday: "long",
@@ -164,9 +182,10 @@ export default function Index() {
 
   useEffect(() => {
     const getWeather = async () => {
+      const coordinates = regionCoordinates.find((r) => r.label === region);
       const WEATHER_URL =
         "https://api.open-meteo.com/v1/forecast" +
-        "?latitude=14.8133&longitude=121.0453" +
+        `?latitude=${coordinates?.latitude}&longitude=${coordinates?.longitude}` +
         "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,precipitation_probability,uv_index,temperature_2m_min,temperature_2m_max" +
         "&hourly=temperature_2m,weather_code" +
         "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max" +
@@ -174,8 +193,8 @@ export default function Index() {
         "&timezone=Asia%2FManila";
       const AIR_QUALITY_URL =
         "https://air-quality-api.open-meteo.com/v1/air-quality" +
-        "?latitude=14.8133&longitude=121.0453" +
-        "&current=european_aqi,pm2_5,pm10" +
+        `?latitude=${coordinates?.latitude}&longitude=${coordinates?.longitude}` +
+        `&current=european_aqi,pm2_5,pm10` +
         "&timezone=Asia%2FManila";
 
       const response = await fetch(WEATHER_URL);
@@ -210,7 +229,7 @@ export default function Index() {
       15 * 60 * 1000,
     );
     return () => clearInterval(intervalWeather);
-  }, []);
+  }, [region]);
   const currentWeather = weatherCodes[weatherCurrentCode ?? -1];
   const CurrentIcon = currentWeather?.icon;
   const currentWeatherLabel = currentWeather?.label ?? "Loading weather...";
@@ -224,14 +243,30 @@ export default function Index() {
     >
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <MapPin size={20} color="#2B3A4F" />
-        <Text style={styles.textColor}>San Jose Del Monte, Bulacan</Text>
+
+        <View style={{ flex: 1, marginTop: 5 }}>
+          <Picker
+            selectedValue={region}
+            onValueChange={(itemValue) => setRegion(itemValue)}
+            style={{
+              height: "auto",
+              width: "100%",
+              color: "#2B3A4F",
+              marginBottom: 6,
+            }}
+          >
+            <Picker.Item label="Manila" value="Manila" />
+            <Picker.Item label="Bulacan" value="Bulacan" />
+            <Picker.Item label="Nueva Ecija" value="Nueva Ecija" />
+          </Picker>
+        </View>
       </View>
 
       <View style={styles.weatherContainer}>
         <Text style={styles.dateText}>
           {currentDate} • {formatTime12hrs(currentTime.getHours(), currentTime.getMinutes())}
         </Text>
-        <View style={styles.conditionRow}>
+        <View style={[styles.conditionRow, { marginBottom: -16, marginTop: 4 }]}>
           {CurrentIcon && (
             <CurrentIcon size={32} strokeWidth={1.8} color={currentWeather?.color ?? "#4F86C6"} />
           )}
