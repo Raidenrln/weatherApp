@@ -1,10 +1,18 @@
 import {
   Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudHail,
+  CloudLightning,
   CloudRain,
+  CloudSnow,
   CloudSun,
   Droplet,
   Leaf,
+  LucideIcon,
   MapPin,
+  Snowflake,
+  Sun,
   Thermometer,
   ThermometerSun,
   Wind,
@@ -18,18 +26,34 @@ type HourlyWeather = {
   temperature_2m: number[];
   weather_code: number[];
 };
+type DailyWeather = {
+  temperature_2m_max: number[];
+  temperature_2m_min: number[];
+  time: string[];
+  uv_index_max: number[];
+  weather_code: number[];
+};
+type WeatherInfo = {
+  label: string;
+  icon: LucideIcon;
+  color: string;
+};
 
 export default function Index() {
   const insets = useSafeAreaInsets();
-  const [temperature, setTemperature] = useState<Number | null>(null);
-  const [appTemp, setAppTemp] = useState<Number | null>(null);
-  const [humidity, setHumidity] = useState<Number | null>(null);
-  const [windSpeed, setWindSpeed] = useState<Number | null>(null);
+  const [weatherCurrentCode, setWeatherCurrentCode] = useState<number | null>(null);
+  const [temperature, setTemperature] = useState<number | null>(null);
+  const [minTemperature, setMinTemperature] = useState<number | null>(null);
+  const [maxTemperature, setMaxTemperature] = useState<number | null>(null);
+  const [appTemp, setAppTemp] = useState<number | null>(null);
+  const [humidity, setHumidity] = useState<number | null>(null);
+  const [windSpeed, setWindSpeed] = useState<number | null>(null);
   const [windDirection, setWindDirection] = useState<number | null>(null);
   const [rainChance, setRainChance] = useState<number | null>(null);
   const [precipitation, setPrecipitation] = useState<number | null>(null);
   const [uvIndex, setUvIndex] = useState<number | null>(null);
   const [hourly, setHourly] = useState<HourlyWeather | null>(null);
+  const [dailyWeather, setDailyWeather] = useState<DailyWeather | null>(null);
   const [aqi, setAqi] = useState<number | null>(null);
   const currentDate = new Date().toLocaleDateString("en-US", {
     month: "short",
@@ -59,16 +83,60 @@ export default function Index() {
 
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
-      minute: "2-digit",
       hour12: true,
       timeZone: "Asia/Manila",
     });
   };
-  const labelIconWeather = {
-    1: {
-      label: "Clear sky",
-      icon: Cloud,
-    },
+
+  const formatDailyDate = (time: string) => {
+    const date = new Date(time);
+
+    const weekdays = ["Mon", "Tue", "Wed", "Thur", "Fri", "Sat", "Sun"];
+
+    const weekday = weekdays[(date.getDay() + 6) % 7];
+
+    return weekday;
+  };
+
+  const dailyAveTemp = (index: number) => {
+    const min = dailyWeather?.temperature_2m_min[index];
+    const max = dailyWeather?.temperature_2m_max[index];
+
+    if (min == null || max == null) return null;
+
+    return (min + max) / 2;
+  };
+
+  const weatherCodes: Record<number, WeatherInfo | undefined> = {
+    0: { label: "Clear sky", icon: Sun, color: "#F5A623" },
+    1: { label: "Mainly clear", icon: CloudSun, color: "#F0B13F" },
+    2: { label: "Partly cloudy", icon: CloudSun, color: "#E9B54F" },
+    3: { label: "Overcast", icon: Cloud, color: "#8A9BB0" },
+    45: { label: "Fog", icon: CloudFog, color: "#A3B1C2" },
+    48: { label: "Depositing rime fog", icon: CloudFog, color: "#97A6B8" },
+    51: { label: "Light drizzle", icon: CloudDrizzle, color: "#7FB2E0" },
+    53: { label: "Moderate drizzle", icon: CloudDrizzle, color: "#6FA8DC" },
+    55: { label: "Dense drizzle", icon: CloudDrizzle, color: "#5B97D3" },
+    56: { label: "Light freezing drizzle", icon: CloudDrizzle, color: "#6CC0DC" },
+    57: { label: "Dense freezing drizzle", icon: CloudDrizzle, color: "#52B0D2" },
+    61: { label: "Slight rain", icon: CloudRain, color: "#5A9BE0" },
+    63: { label: "Moderate rain", icon: CloudRain, color: "#3B7DD8" },
+    65: { label: "Heavy rain", icon: CloudRain, color: "#2F5FB3" },
+    66: { label: "Light freezing rain", icon: CloudRain, color: "#4FB0D8" },
+    67: { label: "Heavy freezing rain", icon: CloudRain, color: "#3A9CC8" },
+    71: { label: "Slight snowfall", icon: CloudSnow, color: "#8FC3EA" },
+    73: { label: "Moderate snowfall", icon: CloudSnow, color: "#7BB5E6" },
+    75: { label: "Heavy snowfall", icon: CloudSnow, color: "#639FD8" },
+    77: { label: "Snow grains", icon: Snowflake, color: "#8CC8E8" },
+    80: { label: "Slight rain showers", icon: CloudRain, color: "#4C8DE0" },
+    81: { label: "Moderate rain showers", icon: CloudRain, color: "#3B7DD8" },
+    82: { label: "Violent rain showers", icon: CloudRain, color: "#2A4F9E" },
+    85: { label: "Slight snow showers", icon: CloudSnow, color: "#86BDE8" },
+    86: { label: "Heavy snow showers", icon: CloudSnow, color: "#6AA5DC" },
+    95: { label: "Thunderstorm", icon: CloudLightning, color: "#7A5AC8" },
+    96: { label: "Thunderstorm with slight hail", icon: CloudHail, color: "#5C7FA8" },
+    97: { label: "Heavy thunderstorm", icon: CloudLightning, color: "#5B3FA8" },
+    99: { label: "Thunderstorm with heavy hail", icon: CloudHail, color: "#4A6C99" },
   } as const;
 
   const getAqiLabel = (aqi: number) => {
@@ -81,16 +149,7 @@ export default function Index() {
   };
 
   function getWindDirection(degrees: number): string {
-    const directions = [
-      "North",
-      "North East",
-      "East",
-      "South East",
-      "South",
-      "South West",
-      "West",
-      "North West",
-    ];
+    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 
     return directions[Math.round(degrees / 45) % 8];
   }
@@ -108,7 +167,7 @@ export default function Index() {
       const WEATHER_URL =
         "https://api.open-meteo.com/v1/forecast" +
         "?latitude=14.8133&longitude=121.0453" +
-        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,precipitation_probability" +
+        "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,precipitation_probability,uv_index,temperature_2m_min,temperature_2m_max" +
         "&hourly=temperature_2m,weather_code" +
         "&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max" +
         "&forecast_days=7" +
@@ -130,13 +189,17 @@ export default function Index() {
       setWindDirection(data.current.wind_direction_10m);
       setRainChance(data.current.precipitation_probability);
       setPrecipitation(data.current.precipitation);
-      setUvIndex(data.daily.uv_index_max[0]);
+      setWeatherCurrentCode(data.current.weather_code);
+      setMaxTemperature(data.daily.temperature_2m_max[0]);
+      setMinTemperature(data.daily.temperature_2m_min[0]);
+      setUvIndex(data.current.uv_index);
       setAqi(airData.current.european_aqi);
       setHourly(data.hourly);
+      setDailyWeather(data.daily);
       console.log("Current:", data.current);
       console.log("Hourly:", data.hourly);
       console.log("Daily:", data.daily);
-      console.log("Air quality:", airData.current);
+      // console.log("Air quality:", airData.current);
     };
     // hourly?.time.map((t) => console.log(formatHourly(t)));
     getWeather();
@@ -148,7 +211,9 @@ export default function Index() {
     );
     return () => clearInterval(intervalWeather);
   }, []);
-
+  const currentWeather = weatherCodes[weatherCurrentCode ?? -1];
+  const CurrentIcon = currentWeather?.icon;
+  const currentWeatherLabel = currentWeather?.label ?? "Loading weather...";
   return (
     <ScrollView
       style={styles.container}
@@ -158,79 +223,128 @@ export default function Index() {
       showsVerticalScrollIndicator={false}
     >
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <MapPin size={20} color="#1B252F" />
+        <MapPin size={20} color="#2B3A4F" />
         <Text style={styles.textColor}>San Jose Del Monte, Bulacan</Text>
       </View>
 
       <View style={styles.weatherContainer}>
         <Text style={styles.dateText}>
-          {currentDate} • {formatTime12hrs(currentTime.getHours(), currentTime.getHours())}
+          {currentDate} • {formatTime12hrs(currentTime.getHours(), currentTime.getMinutes())}
+        </Text>
+        <View style={styles.conditionRow}>
+          {CurrentIcon && (
+            <CurrentIcon size={32} strokeWidth={1.8} color={currentWeather?.color ?? "#4F86C6"} />
+          )}
+          <Text style={styles.conditionText}>{currentWeatherLabel}</Text>
+        </View>
+        <View style={styles.weatherDisplay}>
+          <View style={styles.temperatureRow}>
+            <Text style={styles.temperature}>{temperature ?? "--"}</Text>
+            <Text style={styles.degree}>°</Text>
+          </View>
+        </View>
+
+        <Text style={styles.highLow}>
+          H: {maxTemperature ?? "--"}° • L: {minTemperature ?? "--"}°
         </Text>
 
-        <View style={styles.weatherDisplay}>
-          <CloudSun size={64} color="#E9A23B" strokeWidth={1.8} />
-          <Text style={styles.temperature}>{temperature !== null ? `${temperature}°` : "--°"}</Text>
-        </View>
-
-        <Text style={{ fontSize: 24, fontWeight: 600, color: "#1B252F" }}>Partly cloudy</Text>
-        <View>
-          <Text style={{ color: "#657383", padding: 8, fontSize: 16 }}>H: 33° • L: 26°</Text>
-        </View>
-
-        <View style={{ display: "flex", flexDirection: "row" }}>
-          <View style={{ display: "flex", flexDirection: "row", gap: 8 }}>
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: "white",
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: 16,
-                gap: 6,
-              }}
-            >
-              <Droplet size={16} color={"blue"} />
-              <Text style={{ fontSize: 15, fontWeight: 500, marginTop: 2 }}>
-                Rain {rainChance}%
-              </Text>
-            </View>
-            <View
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: "white",
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: 16,
-                gap: 6,
-              }}
-            >
-              <Leaf size={16} color={"green"} />
-              <Text style={{ fontSize: 15, fontWeight: 500, marginTop: 2 }}>
-                Air quality {aqi} • {aqi !== null ? getAqiLabel(aqi) : "--"}
-              </Text>
-            </View>
+        <View style={styles.chipRow}>
+          <View style={styles.chip}>
+            <Droplet size={16} color="#2F80ED" />
+            <Text style={styles.chipText}>Rain {rainChance ?? "--"}%</Text>
+          </View>
+          <View style={styles.chip}>
+            <Leaf size={16} color="#3FA66B" />
+            <Text style={styles.chipText}>
+              Air quality {aqi ?? "--"} • {aqi !== null ? getAqiLabel(aqi) : "--"}
+            </Text>
           </View>
         </View>
       </View>
-      {/* Houry weather */}
-      <View style={{ padding: 16 }}>
-        <View style={{ backgroundColor: "white", padding: 16, borderRadius: 16 }}>
-          <Text style={{ fontSize: 16 }}>HOURLY</Text>
-          <View style={{ display: "flex", flexDirection: "row", justifyContent: "space-around" }}>
+      <View style={{ padding: 16, gap: 8 }}>
+        {/* Houry weather */}
+
+        <View
+          style={{
+            backgroundColor: "#F8FBFF",
+            padding: 16,
+            borderRadius: 16,
+            gap: 2,
+            width: "100%",
+          }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: 700, color: "#2B3A4F" }}>Hourly</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              width: "100%",
+            }}
+          >
             {hourly?.time.slice(isCurrentHour, isCurrentHour + 5).map((time, index) => {
               const actualTemp = isCurrentHour + index;
+              const weather = weatherCodes[hourly.weather_code[actualTemp]];
+              const WeatherIcon = weather?.icon;
+
               return (
                 <View
                   key={time}
-                  style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}
+                  style={{
+                    flex: 1,
+                    flexDirection: "column",
+                    gap: 8,
+                    alignItems: "center",
+                  }}
                 >
-                  <Text style={{ color: "blue" }}>{index === 0 ? "Now" : formatHourly(time)}</Text>
-                  <CloudSun />
-                  <Text style={{ fontSize: 16 }}>{hourly.temperature_2m[actualTemp]}°</Text>
+                  <Text
+                    style={{
+                      color: index === 0 ? "#2F80ED" : "#9AABC0",
+                      fontSize: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    {index === 0 ? "Now" : formatHourly(time)}
+                  </Text>
+
+                  {WeatherIcon && <WeatherIcon color={weather?.color ?? "#6C8EBF"} />}
+
+                  <Text style={{ fontSize: 12, color: "#2B3A4F" }}>
+                    {hourly.temperature_2m[actualTemp]}°
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={{ backgroundColor: "#F8FBFF", padding: 16, borderRadius: 16, gap: 2 }}>
+          <Text style={{ fontSize: 16, fontWeight: 700, color: "#2B3A4F" }}>Daily</Text>
+          <View style={{ display: "flex", flexDirection: "row", justifyContent: "space-around" }}>
+            {dailyWeather?.time.map((time, index) => {
+              const weather = weatherCodes[dailyWeather.weather_code[index]];
+              const WeatherIcon = weather?.icon;
+              return (
+                <View
+                  key={time}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={
+                      index === 0
+                        ? { color: "#2F80ED", fontSize: 12 }
+                        : { color: "#9AABC0", fontSize: 12 }
+                    }
+                  >
+                    {index === 0 ? "Today" : formatDailyDate(time)}
+                  </Text>
+                  {WeatherIcon && <WeatherIcon color={weather?.color ?? "#6C8EBF"} />}
+                  <Text style={{ fontSize: 12, color: "#2B3A4F" }}>
+                    {dailyAveTemp(index)?.toFixed(1) ?? "--"}°
+                  </Text>
                 </View>
               );
             })}
@@ -238,6 +352,7 @@ export default function Index() {
         </View>
       </View>
       {/* Weather data */}
+
       <View
         style={{
           flexDirection: "row",
@@ -248,7 +363,7 @@ export default function Index() {
       >
         <View
           style={{
-            backgroundColor: "white",
+            backgroundColor: "#F8FBFF",
             paddingVertical: 8,
             paddingHorizontal: 12,
             borderRadius: 16,
@@ -258,18 +373,18 @@ export default function Index() {
           }}
         >
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Thermometer size={14} color={"#657383"} />
-            <Text style={{ color: "#657383", fontSize: 11.5 }}>Feels like</Text>
+            <Thermometer size={14} color={"#6B7F99"} />
+            <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Feels Like Temp</Text>
           </View>
-          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+          <Text style={{ color: "#2B3A4F", fontWeight: 700, fontSize: 20 }}>
             {appTemp !== null ? `${appTemp}` : "--"}°
           </Text>
-          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+          {/* <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
         </View>
 
         <View
           style={{
-            backgroundColor: "white",
+            backgroundColor: "#F8FBFF",
             paddingVertical: 8,
             paddingHorizontal: 12,
             borderRadius: 16,
@@ -279,17 +394,17 @@ export default function Index() {
           }}
         >
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Droplet size={14} color={"#657383"} />
-            <Text style={{ color: "#657383", fontSize: 11.5 }}>Humidity</Text>
+            <Droplet size={14} color={"#6B7F99"} />
+            <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Humidity</Text>
           </View>
-          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
-            {appTemp !== null ? `${humidity}` : "--"}%
+          <Text style={{ color: "#2B3A4F", fontWeight: 700, fontSize: 20 }}>
+            {humidity !== null ? `${humidity}` : "--"}%
           </Text>
-          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+          {/* <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
         </View>
         <View
           style={{
-            backgroundColor: "white",
+            backgroundColor: "#F8FBFF",
             paddingVertical: 8,
             paddingHorizontal: 12,
             borderRadius: 16,
@@ -299,18 +414,18 @@ export default function Index() {
           }}
         >
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Wind size={14} color={"#657383"} />
-            <Text style={{ color: "#657383", fontSize: 11.5 }}>Wind</Text>
+            <Wind size={14} color={"#6B7F99"} />
+            <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Wind</Text>
           </View>
-          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+          <Text style={{ color: "#2B3A4F", fontWeight: 700, fontSize: 20 }}>
             {appTemp !== null ? `${windSpeed} km/h` : "--"}{" "}
             {windDirection !== null ? getWindDirection(windDirection) : "--"}
           </Text>
-          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+          {/* <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
         </View>
         <View
           style={{
-            backgroundColor: "white",
+            backgroundColor: "#F8FBFF",
             paddingVertical: 8,
             paddingHorizontal: 12,
             borderRadius: 16,
@@ -320,17 +435,17 @@ export default function Index() {
           }}
         >
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <CloudRain size={14} color={"#657383"} />
-            <Text style={{ color: "#657383", fontSize: 11.5 }}>Precipitation</Text>
+            <CloudRain size={14} color={"#6B7F99"} />
+            <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Precipitation</Text>
           </View>
-          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
-            {precipitation !== null ? `${precipitation}` : "--"}%
+          <Text style={{ color: "#2B3A4F", fontWeight: 700, fontSize: 20 }}>
+            {precipitation !== null ? `${precipitation}mm` : "--"}
           </Text>
-          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+          {/* <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
         </View>
         <View
           style={{
-            backgroundColor: "white",
+            backgroundColor: "#F8FBFF",
             paddingVertical: 8,
             paddingHorizontal: 12,
             borderRadius: 16,
@@ -340,13 +455,13 @@ export default function Index() {
           }}
         >
           <View style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <ThermometerSun size={14} color={"#657383"} />
-            <Text style={{ color: "#657383", fontSize: 11.5 }}>UV Index</Text>
+            <ThermometerSun size={14} color={"#6B7F99"} />
+            <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>UV Index</Text>
           </View>
-          <Text style={{ color: "#1B252F", fontWeight: 700, fontSize: 20 }}>
+          <Text style={{ color: "#2B3A4F", fontWeight: 700, fontSize: 20 }}>
             {uvIndex !== null ? `${uvIndex} ${getUVLabel(uvIndex)}` : "--"}
           </Text>
-          {/* <Text style={{ color: "#657383", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
+          {/* <Text style={{ color: "#6B7F99", fontSize: 11.5 }}>Humid, feels warmer</Text> */}
         </View>
       </View>
     </ScrollView>
@@ -356,7 +471,7 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E9EFF6",
+    backgroundColor: "#DCEBFA",
   },
   header: {
     minHeight: 70,
@@ -366,7 +481,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   textColor: {
-    color: "#1B252F",
+    color: "#2B3A4F",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -376,18 +491,69 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   dateText: {
-    color: "#657383",
-    fontSize: 14,
+    color: "#6B7F99",
+    fontSize: 13,
   },
   weatherDisplay: {
     alignItems: "center",
-    gap: -12,
+  },
+  conditionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  conditionText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#2B3A4F",
+  },
+  temperatureRow: {
+    alignSelf: "center",
+    marginTop: 4,
   },
   temperature: {
-    color: "#1B252F",
+    color: "#2B3A4F",
     fontSize: 128,
     fontWeight: "600",
-    lineHeight: 130,
-    marginTop: -12,
+    lineHeight: 136,
+    includeFontPadding: false,
+  },
+  degree: {
+    position: "absolute",
+    left: "100%",
+    top: 10,
+    color: "#2B3A4F",
+    fontSize: 56,
+    fontWeight: "600",
+    lineHeight: 60,
+    includeFontPadding: false,
+  },
+  highLow: {
+    color: "#6B7F99",
+    fontSize: 16,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FBFF",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 6,
+  },
+  chipText: {
+    fontSize: 15,
+    fontWeight: "500",
+    lineHeight: 20,
+    color: "#2B3A4F",
   },
 });
