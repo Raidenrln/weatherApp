@@ -63,7 +63,7 @@ export default function Index() {
       longitude: 120.9822,
     },
     {
-      label: "Bulacan",
+      label: "Bulacan, SJDM",
       latitude: 14.8133,
       longitude: 121.0453,
     },
@@ -244,7 +244,7 @@ export default function Index() {
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <MapPin size={20} color="#2B3A4F" />
 
-        <View style={{ flex: 1, marginTop: 5 }}>
+        <View style={{ flex: 1 }}>
           <Picker
             selectedValue={region}
             onValueChange={(itemValue) => setRegion(itemValue)}
@@ -252,11 +252,12 @@ export default function Index() {
               height: "auto",
               width: "100%",
               color: "#2B3A4F",
+              marginTop: 5,
               marginBottom: 6,
             }}
           >
             <Picker.Item label="Manila" value="Manila" />
-            <Picker.Item label="Bulacan" value="Bulacan" />
+            <Picker.Item label="Bulacan, SJDM" value="Bulacan, SJDM" />
             <Picker.Item label="Nueva Ecija" value="Nueva Ecija" />
           </Picker>
         </View>
@@ -522,7 +523,6 @@ const styles = StyleSheet.create({
   },
   weatherContainer: {
     alignItems: "center",
-    paddingTop: 8,
     paddingHorizontal: 8,
   },
   dateText: {
